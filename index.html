@@ -194,8 +194,11 @@
 
             try {
                 // Construct the prompt for the LLM
-                const prompt = `Translate the following ${sourceLanguage} code to Python. Ensure the Python code is complete, correct, and directly executable, with necessary imports and clear comments. Provide only the Python code, no additional conversational text or explanations.
-\`\`\`
+                // Modified prompt to explicitly ask for a Python code block
+                const prompt = `Translate the following ${sourceLanguage} code to Python. Ensure the Python code is complete, correct, and directly executable, with necessary imports and clear comments.
+Your response MUST be a Python code block. If you cannot translate a specific part, explain it as a comment within the Python code block. Do not include any text outside the Python code block.
+
+\`\`\`${sourceLanguage}
 ${sourceCode}
 \`\`\``;
 
@@ -215,20 +218,24 @@ ${sourceCode}
 
                 const result = await response.json();
 
+                // Check for candidates and content. If missing, log the full result for debugging.
                 if (result.candidates && result.candidates.length > 0 &&
                     result.candidates[0].content && result.candidates[0].content.parts &&
                     result.candidates[0].content.parts.length > 0) {
                     const pythonCode = result.candidates[0].content.parts[0].text;
-                    pythonCodeElem.value = pythonCode.replace(/```python\n|```/g, '').trim(); // Remove markdown code block
+                    // Remove markdown code block fences (```python and ```)
+                    pythonCodeElem.value = pythonCode.replace(/```python\n|```/g, '').trim();
                     displayMessage('Código traducido con éxito.', 'success');
                 } else {
-                    console.error("Unexpected LLM response structure:", result);
+                    console.error("Unexpected LLM response structure (or empty content):", result);
                     displayMessage('Error al traducir el código. No se recibió una respuesta válida.', 'error');
+                    pythonCodeElem.value = "# Error: No se pudo generar la traducción. Revisa la consola para más detalles o intenta con otro código.";
                 }
 
             } catch (error) {
                 console.error("Error during API call:", error);
                 displayMessage('Error en la conexión con el servicio de traducción. Intenta de nuevo más tarde.', 'error');
+                pythonCodeElem.value = "# Error de red o API. Revisa tu conexión a internet.";
             } finally {
                 loadingIndicator.classList.add('hidden');
                 translateButton.disabled = false;
