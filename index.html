@@ -206,7 +206,11 @@ ${sourceCode}
                 chatHistory.push({ role: "user", parts: [{ text: prompt }] });
 
                 const payload = { contents: chatHistory };
-                const apiKey = ""; // Canvas will automatically provide API key in runtime
+                // IMPORTANT: For Vercel deployment of a pure HTML file, the API key must be directly embedded.
+                // Replace "TU_CLAVE_DE_API_DE_GEMINI_AQUI" with your actual Gemini API Key.
+                // WARNING: This exposes your API key in the client-side code. For highly sensitive applications,
+                // a backend proxy (e.g., a Vercel Serverless Function) would be more secure.
+                const apiKey = AIzaSyA7IkWUlourFP4_sf9014fcHIlM-oFIx-U; // <--- REEMPLAZA ESTO CON TU CLAVE REAL
 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
