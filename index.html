@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traductor de Código a Python</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 250px; /* Make text areas taller by default */
+        }
+        button {
+            transition: all 0.2s ease-in-out;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .btn-primary {
+            background-color: #2563eb; /* blue-600 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            border-radius: 0.375rem;
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8; /* blue-700 */
+        }
+        .btn-secondary {
+            background-color: #6b7280; /* gray-500 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            border-radius: 0.375rem;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563; /* gray-600 */
+        }
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            font-weight: 600;
+            color: #4f46e5; /* indigo-600 */
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4f46e5; /* indigo-600 */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Custom Modal for alerts/confirmations */
+        .custom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .custom-modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .custom-modal-buttons {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body class="leading-relaxed">
+    <div id="app-container" class="min-h-screen bg-gray-100 text-gray-800 flex flex-col items-center py-10">
+        <div class="container mx-auto p-6 bg-white rounded-lg shadow-xl">
+            <h1 class="text-4xl font-extrabold text-blue-800 mb-6 text-center">Traductor de Código a Python</h1>
+            <p class="text-center text-gray-600 mb-8">Pega tu código fuente (SAS o Stata) y obtén la traducción a Python.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Columna de Código Fuente -->
+                <div>
+                    <h2 class="text-2xl font-bold text-blue-700 mb-4">Código Fuente</h2>
+                    <select id="sourceLanguage" class="w-full p-3 mb-4 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="stata">Stata (.do)</option>
+                        <option value="sas">SAS</option>
+                    </select>
+                    <textarea
+                        id="sourceCode"
+                        class="w-full p-4 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        placeholder="Pega tu código SAS o Stata aquí..."
+                    ></textarea>
+                </div>
+
+                <!-- Columna de Código Python -->
+                <div>
+                    <h2 class="text-2xl font-bold text-blue-700 mb-4">Código Python</h2>
+                    <textarea
+                        id="pythonCode"
+                        class="w-full p-4 border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm bg-gray-50"
+                        placeholder="El código Python aparecerá aquí..."
+                        readonly
+                    ></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-center mt-8 space-x-4">
+                <button
+                    id="translateButton"
+                    class="btn-primary"
+                >
+                    Traducir a Python
+                </button>
+                <button
+                    id="copyButton"
+                    class="btn-secondary"
+                >
+                    Copiar Código Python
+                </button>
+            </div>
+
+            <div id="loadingIndicator" class="loading-indicator hidden mt-6">
+                <div class="spinner"></div> Traduciendo código...
+            </div>
+            <div id="messageDisplay" class="mt-6 text-center text-red-600 font-semibold"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        const sourceCodeElem = document.getElementById('sourceCode');
+        const sourceLanguageElem = document.getElementById('sourceLanguage');
+        const pythonCodeElem = document.getElementById('pythonCode');
+        const translateButton = document.getElementById('translateButton');
+        const copyButton = document.getElementById('copyButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const messageDisplay = document.getElementById('messageDisplay');
+
+        // Function to display messages to the user (instead of alert())
+        function displayMessage(message, type = 'info') {
+            messageDisplay.textContent = message;
+            if (type === 'error') {
+                messageDisplay.className = 'mt-6 text-center text-red-600 font-semibold';
+            } else if (type === 'success') {
+                messageDisplay.className = 'mt-6 text-center text-green-600 font-semibold';
+            } else {
+                messageDisplay.className = 'mt-6 text-center text-gray-600 font-semibold';
+            }
+            // Clear message after some time
+            setTimeout(() => {
+                messageDisplay.textContent = '';
+            }, 5000);
+        }
+
+        // Event listener for the translate button
+        translateButton.addEventListener('click', async () => {
+            const sourceCode = sourceCodeElem.value.trim();
+            const sourceLanguage = sourceLanguageElem.value;
+
+            if (!sourceCode) {
+                displayMessage('Por favor, pega el código fuente para traducir.', 'error');
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden');
+            translateButton.disabled = true;
+            pythonCodeElem.value = ''; // Clear previous output
+            messageDisplay.textContent = ''; // Clear previous messages
+
+            try {
+                // Construct the prompt for the LLM
+                const prompt = `Translate the following ${sourceLanguage} code to Python. Ensure the Python code is complete, correct, and directly executable, with necessary imports and clear comments. Provide only the Python code, no additional conversational text or explanations.
+\`\`\`
+${sourceCode}
+\`\`\``;
+
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas will automatically provide API key in runtime
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const pythonCode = result.candidates[0].content.parts[0].text;
+                    pythonCodeElem.value = pythonCode.replace(/```python\n|```/g, '').trim(); // Remove markdown code block
+                    displayMessage('Código traducido con éxito.', 'success');
+                } else {
+                    console.error("Unexpected LLM response structure:", result);
+                    displayMessage('Error al traducir el código. No se recibió una respuesta válida.', 'error');
+                }
+
+            } catch (error) {
+                console.error("Error during API call:", error);
+                displayMessage('Error en la conexión con el servicio de traducción. Intenta de nuevo más tarde.', 'error');
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                translateButton.disabled = false;
+            }
+        });
+
+        // Event listener for the copy button
+        copyButton.addEventListener('click', () => {
+            if (pythonCodeElem.value) {
+                // Use document.execCommand('copy') for better iframe compatibility
+                pythonCodeElem.select();
+                document.execCommand('copy');
+                displayMessage('Código Python copiado al portapapeles.', 'success');
+            } else {
+                displayMessage('No hay código para copiar.', 'info');
+            }
+        });
+    </script>
+</body>
+</html>
