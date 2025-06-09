@@ -178,6 +178,66 @@
             }, 5000);
         }
 
+        /**
+         * Validates if the provided code matches the selected source language.
+         * Uses simple keyword checks for common patterns in each language.
+         * @param {string} code - The source code to validate.
+         * @param {string} lang - The selected source language ('stata', 'sas', 'r').
+         * @returns {{isValid: boolean, message: string}} - Validation result.
+         */
+        function validateSourceCode(code, lang) {
+            const lowerCaseCode = code.toLowerCase();
+
+            const languagePatterns = {
+                stata: ['use ', 'gen ', 'replace ', 'bysort ', 'reg ', 'sum ', 'tab ', 'display ', '.do', 'clear ', 'set obs '],
+                sas: ['proc ', 'data ', 'run;', 'quit;', 'set ', 'libname ', '%macro ', '%mend ', 'input ', 'cards;'],
+                r: ['<-', 'function(', 'data.frame(', 'library(', 'read.csv(', 'lm(', 'dplyr::', 'ggplot2::', '#', 'install.packages(']
+            };
+
+            const selectedLangPatterns = languagePatterns[lang];
+            let containsSelectedLangSyntax = false;
+            for (const pattern of selectedLangPatterns) {
+                if (lowerCaseCode.includes(pattern)) {
+                    containsSelectedLangSyntax = true;
+                    break;
+                }
+            }
+
+            if (!containsSelectedLangSyntax) {
+                return { isValid: false, message: `El código pegado no parece ser código ${lang.toUpperCase()}. Por favor, verifica tu selección de idioma o el código.` };
+            }
+
+            // Optional: Check for strong presence of *other* language syntax.
+            // This is a heuristic and might produce false positives for very short or generic code.
+            for (const otherLang in languagePatterns) {
+                if (otherLang !== lang) {
+                    const otherLangPatterns = languagePatterns[otherLang];
+                    let containsOtherLangSyntax = false;
+                    for (const pattern of otherLangPatterns) {
+                        if (lowerCaseCode.includes(pattern)) {
+                            // Require at least 2 patterns from another language to flag as ambiguous
+                            let otherLangMatchCount = 0;
+                            for(const p of otherLangPatterns) {
+                                if (lowerCaseCode.includes(p)) {
+                                    otherLangMatchCount++;
+                                }
+                            }
+                            if (otherLangMatchCount >= 2) { // Threshold to avoid generic matches
+                                containsOtherLangSyntax = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (containsOtherLangSyntax) {
+                        return { isValid: false, message: `El código pegado también parece contener sintaxis de ${otherLang.toUpperCase()}. Por favor, asegúrate de haber seleccionado el idioma correcto.` };
+                    }
+                }
+            }
+
+            return { isValid: true, message: '' };
+        }
+
+
         // Event listener for the translate button
         translateButton.addEventListener('click', async () => {
             const sourceCode = sourceCodeElem.value.trim();
@@ -187,6 +247,16 @@
                 displayMessage('Por favor, pega el código fuente para traducir.', 'error');
                 return;
             }
+
+            // --- New Validation Step ---
+            const validationResult = validateSourceCode(sourceCode, sourceLanguage);
+            if (!validationResult.isValid) {
+                displayMessage(validationResult.message, 'error');
+                pythonCodeElem.value = ""; // Clear previous output if validation fails
+                return;
+            }
+            // --- End Validation Step ---
+
 
             loadingIndicator.classList.remove('hidden');
             translateButton.disabled = true;
