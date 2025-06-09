@@ -101,7 +101,7 @@
     <div id="app-container" class="min-h-screen bg-gray-100 text-gray-800 flex flex-col items-center py-10">
         <div class="container mx-auto p-6 bg-white rounded-lg shadow-xl">
             <h1 class="text-4xl font-extrabold text-blue-800 mb-6 text-center">Traductor de Código a Python</h1>
-            <p class="text-center text-gray-600 mb-8">Pega tu código fuente (SAS o Stata) y obtén la traducción a Python.</p>
+            <p class="text-center text-gray-600 mb-8">Pega tu código fuente (SAS, Stata o R) y obtén la traducción a Python.</p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <!-- Columna de Código Fuente -->
@@ -110,11 +110,12 @@
                     <select id="sourceLanguage" class="w-full p-3 mb-4 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="stata">Stata (.do)</option>
                         <option value="sas">SAS</option>
+                        <option value="r">R</option> <!-- New option for R -->
                     </select>
                     <textarea
                         id="sourceCode"
                         class="w-full p-4 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                        placeholder="Pega tu código SAS o Stata aquí..."
+                        placeholder="Pega tu código SAS, Stata o R aquí..."
                     ></textarea>
                 </div>
 
@@ -206,11 +207,12 @@ ${sourceCode}
                 chatHistory.push({ role: "user", parts: [{ text: prompt }] });
 
                 const payload = { contents: chatHistory };
-                // IMPORTANT: For Vercel deployment of a pure HTML file, the API key must be directly embedded.
-                // Replace "TU_CLAVE_DE_API_DE_GEMINI_AQUI" with your actual Gemini API Key.
-                // WARNING: This exposes your API key in the client-side code. For highly sensitive applications,
-                // a backend proxy (e.g., a Vercel Serverless Function) would be more secure.
-                const apiKey = "AIzaSyA7IkWUlourFP4_sf9014fcHIlM-oFIx-U"; // <--- REEMPLAZA ESTO CON TU CLAVE REAL
+                // IMPORTANT: For Vercel deployment, read the API key from environment variables
+                // Vercel exposes environment variables starting with VITE_ or NEXT_PUBLIC_
+                const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ""; 
+                
+                // If you are testing this code directly in the Canvas environment, leave apiKey = ""
+                // If you are deploying to Vercel, make sure VITE_GEMINI_API_KEY is set in Vercel project settings.
 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
